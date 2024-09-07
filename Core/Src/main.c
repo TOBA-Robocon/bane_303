@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -78,6 +79,20 @@ TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart1;
 
+/* Definitions for Device_Drive */
+osThreadId_t Device_DriveHandle;
+const osThreadAttr_t Device_Drive_attributes = {
+  .name = "Device_Drive",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for state_CAN_Send */
+osThreadId_t state_CAN_SendHandle;
+const osThreadAttr_t state_CAN_Send_attributes = {
+  .name = "state_CAN_Send",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -89,6 +104,9 @@ static void MX_CAN_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_USART1_UART_Init(void);
+void device_drive(void *argument);
+void state_CAN_send(void *argument);
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -174,7 +192,7 @@ int main(void)
   }
 
   //CANID出力
-  printf("CAN_Receive_Id...%d \r\n",variable_can_id);
+  printf("CAN_Receive_Id...%d \r\n", (int)variable_can_id);
 
   //CANスタート
   HAL_CAN_Start(&hcan);
@@ -190,6 +208,45 @@ int main(void)
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
   /* USER CODE END 2 */
 
+  /* Init scheduler */
+  osKernelInitialize();
+
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* add mutexes, ... */
+  /* USER CODE END RTOS_MUTEX */
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  /* add queues, ... */
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* creation of Device_Drive */
+  Device_DriveHandle = osThreadNew(device_drive, NULL, &Device_Drive_attributes);
+
+  /* creation of state_CAN_Send */
+  state_CAN_SendHandle = osThreadNew(state_CAN_send, NULL, &state_CAN_Send_attributes);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+  /* add threads, ... */
+  /* USER CODE END RTOS_THREADS */
+
+  /* USER CODE BEGIN RTOS_EVENTS */
+  /* add events, ... */
+  /* USER CODE END RTOS_EVENTS */
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
@@ -197,51 +254,6 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  //モーター1駆動
-	  if(M1_direction == 0){
-		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, M1);
-		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-	  }
-	  else if(M1_direction == 1){
-		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
-		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, M1);
-	  }
-
-	  //モーター2駆動
-	  if(M2_direction == 0){
-		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, M2);
-		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, 0);
-	  }
-	  else if(M2_direction == 1){
-		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 0);
-		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, M2);
-	  }
-
-	  //サーボ1駆動
-	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, (int)Servo1_variable);
-
-	  //サーボ2駆動
-	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, (int)Servo2_variable);
-
-	  //LED1点灯
-	  HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, LED1_state);
-
-	  //LED2点灯
-	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, LED2_state);
-
-	  //LED3点灯
-	  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, LED3_state);
-
-	  //Hubの状態をCANバスに送信
-//	  state_data_send();
-
-	  	printf("M1...%d...", M1);
-	  	printf("direction1...%d...", M1_direction);
-	  	printf("M2...%d...", M2);
-	  	printf("direction1...%d...\r\n", M2_direction);
-      printf("%d\r\n", Servo1_variable);
-      printf("%d\r\n", Servo2_variable);
-//	    printf("CAN_Receive_Id...%d \r\n",(int)variable_can_id);
   }
   /* USER CODE END 3 */
 }
@@ -582,7 +594,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	      LED1_state = can_data_receive[6];
 	      LED3_state = can_data_receive[7];
 
-//	      printf("CAN_ID...%u__%u___%u___%u___%u___%u___%u___%u___%u \r\n",variable_can_id,can_data_receive[0], can_data_receive[1], can_data_receive[2], can_data_receive[3], can_data_receive[4], can_data_receive[5], can_data_receive[6], can_data_receive[7]);	//CAN_reveive_Debug
+	      printf("CAN_ID...%u__%u___%u___%u___%u___%u___%u___%u___%u \r\n",variable_can_id,can_data_receive[0], can_data_receive[1], can_data_receive[2], can_data_receive[3], can_data_receive[4], can_data_receive[5], can_data_receive[6], can_data_receive[7]);	//CAN_reveive_Debug
     }
 }
 
@@ -606,6 +618,77 @@ void state_data_send(void){
 }
 
 /* USER CODE END 4 */
+
+/* USER CODE BEGIN Header_device_drive */
+/**
+  * @brief  Function implementing the Device_Drive thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_device_drive */
+void device_drive(void *argument)
+{
+  /* USER CODE BEGIN 5 */
+  /* Infinite loop */
+  for(;;)
+  {
+	  //モーター1駆動
+	  if(M1_direction == 0){
+		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, M1);
+		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+	  }
+	  else if(M1_direction == 1){
+		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
+		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, M1);
+	  }
+
+	  //モーター2駆動
+	  if(M2_direction == 0){
+		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, M2);
+		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, 0);
+	  }
+	  else if(M2_direction == 1){
+		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 0);
+		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, M2);
+	  }
+
+	  //サーボ1駆動
+	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, (int)Servo1_variable);
+
+	  //サーボ2駆動
+	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, (int)Servo2_variable);
+
+	  //LED1点灯
+	  HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, LED1_state);
+
+	  //LED2点灯
+	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, LED2_state);
+
+	  //LED3点灯
+	  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, LED3_state);
+  }
+  /* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_state_CAN_send */
+/**
+* @brief Function implementing the state_CAN_Send thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_state_CAN_send */
+void state_CAN_send(void *argument)
+{
+  /* USER CODE BEGIN state_CAN_send */
+  /* Infinite loop */
+  for(;;)
+  {
+	//Hubの状態をCANバスに送信
+	state_data_send();
+    osDelay(30);
+  }
+  /* USER CODE END state_CAN_send */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.
