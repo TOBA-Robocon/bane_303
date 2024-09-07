@@ -79,20 +79,8 @@ TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart1;
 
-/* Definitions for Device_Drive */
-osThreadId_t Device_DriveHandle;
-const osThreadAttr_t Device_Drive_attributes = {
-  .name = "Device_Drive",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
-};
-/* Definitions for state_CAN_Send */
-osThreadId_t state_CAN_SendHandle;
-const osThreadAttr_t state_CAN_Send_attributes = {
-  .name = "state_CAN_Send",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityLow,
-};
+osThreadId device_driveHandle;
+osThreadId myTask02Handle;
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -104,8 +92,8 @@ static void MX_CAN_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_USART1_UART_Init(void);
-void device_drive(void *argument);
-void state_CAN_send(void *argument);
+void Start_device_drive(void const * argument);
+void StartTask02(void const * argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -208,9 +196,6 @@ int main(void)
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
   /* USER CODE END 2 */
 
-  /* Init scheduler */
-  osKernelInitialize();
-
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
@@ -228,19 +213,17 @@ int main(void)
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
-  /* creation of Device_Drive */
-  Device_DriveHandle = osThreadNew(device_drive, NULL, &Device_Drive_attributes);
+  /* definition and creation of device_drive */
+  osThreadDef(device_drive, Start_device_drive, osPriorityNormal, 0, 128);
+  device_driveHandle = osThreadCreate(osThread(device_drive), NULL);
 
-  /* creation of state_CAN_Send */
-  state_CAN_SendHandle = osThreadNew(state_CAN_send, NULL, &state_CAN_Send_attributes);
+  /* definition and creation of myTask02 */
+  osThreadDef(myTask02, StartTask02, osPriorityLow, 0, 128);
+  myTask02Handle = osThreadCreate(osThread(myTask02), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
-
-  /* USER CODE BEGIN RTOS_EVENTS */
-  /* add events, ... */
-  /* USER CODE END RTOS_EVENTS */
 
   /* Start scheduler */
   osKernelStart();
@@ -254,6 +237,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
   }
   /* USER CODE END 3 */
 }
@@ -320,7 +304,7 @@ static void MX_CAN_Init(void)
 
   /* USER CODE END CAN_Init 1 */
   hcan.Instance = CAN;
-  hcan.Init.Prescaler = 3;
+  hcan.Init.Prescaler = 12;
   hcan.Init.Mode = CAN_MODE_NORMAL;
   hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
   hcan.Init.TimeSeg1 = CAN_BS1_15TQ;
@@ -619,14 +603,14 @@ void state_data_send(void){
 
 /* USER CODE END 4 */
 
-/* USER CODE BEGIN Header_device_drive */
+/* USER CODE BEGIN Header_Start_device_drive */
 /**
-  * @brief  Function implementing the Device_Drive thread.
+  * @brief  Function implementing the device_drive thread.
   * @param  argument: Not used
   * @retval None
   */
-/* USER CODE END Header_device_drive */
-void device_drive(void *argument)
+/* USER CODE END Header_Start_device_drive */
+void Start_device_drive(void const * argument)
 {
   /* USER CODE BEGIN 5 */
   /* Infinite loop */
@@ -670,24 +654,46 @@ void device_drive(void *argument)
   /* USER CODE END 5 */
 }
 
-/* USER CODE BEGIN Header_state_CAN_send */
+/* USER CODE BEGIN Header_StartTask02 */
 /**
-* @brief Function implementing the state_CAN_Send thread.
+* @brief Function implementing the myTask02 thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_state_CAN_send */
-void state_CAN_send(void *argument)
+/* USER CODE END Header_StartTask02 */
+void StartTask02(void const * argument)
 {
-  /* USER CODE BEGIN state_CAN_send */
+  /* USER CODE BEGIN StartTask02 */
   /* Infinite loop */
   for(;;)
   {
-	//Hubの状態をCANバスに送信
 	state_data_send();
-    osDelay(30);
+	printf("gogogo!!!!\r\n");
+	HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
+    osDelay(300);
   }
-  /* USER CODE END state_CAN_send */
+  /* USER CODE END StartTask02 */
+}
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM6 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM6) {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
 }
 
 /**
