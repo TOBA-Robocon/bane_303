@@ -320,7 +320,7 @@ static void MX_CAN_Init(void)
 
   /* USER CODE END CAN_Init 1 */
   hcan.Instance = CAN;
-  hcan.Init.Prescaler = 12;
+  hcan.Init.Prescaler = 3;
   hcan.Init.Mode = CAN_MODE_NORMAL;
   hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
   hcan.Init.TimeSeg1 = CAN_BS1_15TQ;
@@ -701,7 +701,7 @@ void Error_Handler(void)
   __disable_irq();
   while (1)
   {
-	  printf("Shake it off ! Don't worry ! \r\n");
+	  printf("error! \r\n");
 	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, RESET);
 	  HAL_Delay(200);
 	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, SET);
