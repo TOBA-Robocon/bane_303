@@ -73,12 +73,10 @@ void HAL_MspInit(void)
   __HAL_RCC_PWR_CLK_ENABLE();
 
   /* System interrupt init*/
-  /* PendSV_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(PendSV_IRQn, 15, 0);
 
   /* Peripheral interrupt init */
   /* PVD_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(PVD_IRQn, 5, 0);
+  HAL_NVIC_SetPriority(PVD_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(PVD_IRQn);
 
   /* USER CODE BEGIN MspInit 1 */
@@ -116,9 +114,9 @@ void HAL_CAN_MspInit(CAN_HandleTypeDef* hcan)
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
     /* CAN interrupt Init */
-    HAL_NVIC_SetPriority(CAN_RX0_IRQn, 5, 0);
+    HAL_NVIC_SetPriority(CAN_RX0_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(CAN_RX0_IRQn);
-    HAL_NVIC_SetPriority(CAN_RX1_IRQn, 5, 0);
+    HAL_NVIC_SetPriority(CAN_RX1_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(CAN_RX1_IRQn);
   /* USER CODE BEGIN CAN_MspInit 1 */
 
@@ -313,7 +311,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
     /* USART1 interrupt Init */
-    HAL_NVIC_SetPriority(USART1_IRQn, 5, 0);
+    HAL_NVIC_SetPriority(USART1_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(USART1_IRQn);
   /* USER CODE BEGIN USART1_MspInit 1 */
 

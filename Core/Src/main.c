@@ -18,7 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -79,25 +78,6 @@ TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart1;
 
-/* Definitions for device_drive */
-osThreadId_t device_driveHandle;
-const osThreadAttr_t device_drive_attributes = {
-  .name = "device_drive",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
-};
-/* Definitions for myTask02 */
-osThreadId_t myTask02Handle;
-const osThreadAttr_t myTask02_attributes = {
-  .name = "myTask02",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityLow,
-};
-/* Definitions for myBinarySem01 */
-osSemaphoreId_t myBinarySem01Handle;
-const osSemaphoreAttr_t myBinarySem01_attributes = {
-  .name = "myBinarySem01"
-};
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -109,9 +89,6 @@ static void MX_CAN_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_USART1_UART_Init(void);
-void Start_device_drive(void *argument);
-void StartTask02(void *argument);
-
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -212,49 +189,6 @@ int main(void)
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
   /* USER CODE END 2 */
-
-  /* Init scheduler */
-  osKernelInitialize();
-
-  /* USER CODE BEGIN RTOS_MUTEX */
-  /* add mutexes, ... */
-  /* USER CODE END RTOS_MUTEX */
-
-  /* Create the semaphores(s) */
-  /* creation of myBinarySem01 */
-  myBinarySem01Handle = osSemaphoreNew(1, 0, &myBinarySem01_attributes);
-
-  /* USER CODE BEGIN RTOS_SEMAPHORES */
-  /* add semaphores, ... */
-  /* USER CODE END RTOS_SEMAPHORES */
-
-  /* USER CODE BEGIN RTOS_TIMERS */
-  /* start timers, add new ones, ... */
-  /* USER CODE END RTOS_TIMERS */
-
-  /* USER CODE BEGIN RTOS_QUEUES */
-  /* add queues, ... */
-  /* USER CODE END RTOS_QUEUES */
-
-  /* Create the thread(s) */
-  /* creation of device_drive */
-  device_driveHandle = osThreadNew(Start_device_drive, NULL, &device_drive_attributes);
-
-  /* creation of myTask02 */
-  myTask02Handle = osThreadNew(StartTask02, NULL, &myTask02_attributes);
-
-  /* USER CODE BEGIN RTOS_THREADS */
-  /* add threads, ... */
-  /* USER CODE END RTOS_THREADS */
-
-  /* USER CODE BEGIN RTOS_EVENTS */
-  /* add events, ... */
-  /* USER CODE END RTOS_EVENTS */
-
-  /* Start scheduler */
-  osKernelStart();
-
-  /* We should never get here as control is now taken by the scheduler */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -628,99 +562,6 @@ void state_data_send(void){
 }
 
 /* USER CODE END 4 */
-
-/* USER CODE BEGIN Header_Start_device_drive */
-/**
-  * @brief  Function implementing the device_drive thread.
-  * @param  argument: Not used
-  * @retval None
-  */
-/* USER CODE END Header_Start_device_drive */
-void Start_device_drive(void *argument)
-{
-  /* USER CODE BEGIN 5 */
-  /* Infinite loop */
-  for(;;)
-  {
-//	  //モーター1駆動
-//	  if(M1_direction == 0){
-//		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, M1);
-//		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-//	  }
-//	  else if(M1_direction == 1){
-//		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
-//		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, M1);
-//	  }
-//
-//	  //モーター2駆動
-//	  if(M2_direction == 0){
-//		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, M2);
-//		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, 0);
-//	  }
-//	  else if(M2_direction == 1){
-//		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 0);
-//		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, M2);
-//	  }
-//
-//	  //サーボ1駆動
-//	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, (int)Servo1_variable);
-//
-//	  //サーボ2駆動
-//	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, (int)Servo2_variable);
-//
-//	  //LED1点灯
-//	  HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, LED1_state);
-//
-//	  //LED2点灯
-//	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, LED2_state);
-//
-//	  //LED3点灯
-//	  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, LED3_state);
-  }
-  /* USER CODE END 5 */
-}
-
-/* USER CODE BEGIN Header_StartTask02 */
-/**
-* @brief Function implementing the myTask02 thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartTask02 */
-void StartTask02(void *argument)
-{
-  /* USER CODE BEGIN StartTask02 */
-  /* Infinite loop */
-  for(;;)
-  {
-//	state_data_send();
-//	printf("gogogo!!!!\r\n");
-	HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
-//    osDelay(300);
-  }
-  /* USER CODE END StartTask02 */
-}
-
-/**
-  * @brief  Period elapsed callback in non blocking mode
-  * @note   This function is called  when TIM1 interrupt took place, inside
-  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
-  * a global variable "uwTick" used as application time base.
-  * @param  htim : TIM handle
-  * @retval None
-  */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-  /* USER CODE BEGIN Callback 0 */
-
-  /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM1) {
-    HAL_IncTick();
-  }
-  /* USER CODE BEGIN Callback 1 */
-
-  /* USER CODE END Callback 1 */
-}
 
 /**
   * @brief  This function is executed in case of error occurrence.
