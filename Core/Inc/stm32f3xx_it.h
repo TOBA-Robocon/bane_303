@@ -55,8 +55,8 @@ void DebugMon_Handler(void);
 void PVD_IRQHandler(void);
 void CAN_RX0_IRQHandler(void);
 void CAN_RX1_IRQHandler(void);
+void TIM1_UP_TIM16_IRQHandler(void);
 void USART1_IRQHandler(void);
-void TIM6_DAC1_IRQHandler(void);
 /* USER CODE BEGIN EFP */
 
 /* USER CODE END EFP */
