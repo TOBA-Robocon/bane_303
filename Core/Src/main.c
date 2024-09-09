@@ -73,6 +73,7 @@
 /* Private variables ---------------------------------------------------------*/
 CAN_HandleTypeDef hcan;
 
+TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
@@ -89,6 +90,7 @@ static void MX_CAN_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -106,7 +108,7 @@ uint32_t variable_can_id;//フィルターID可変
 
 //状態CAN送信変数
 CAN_TxHeaderTypeDef   TxHeader;
-uint32_t main_control_CAN_id = 0x000 << 5;	//メイン基板の受信ID
+uint32_t main_control_CAN_id = 0x100 << 5;	//メイン基板の受信ID
 uint8_t	can_data_send_state[8] = {0};  //送るデータが入る配列
 uint32_t TxMailbox;  //huh?(考えなくていい)
 
@@ -162,6 +164,7 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM3_Init();
   MX_USART1_UART_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 
   //turn on
@@ -188,6 +191,9 @@ int main(void)
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
+
+  //タイマ割り込みスタート
+  HAL_TIM_Base_Start_IT(&htim1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -197,7 +203,47 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  //モーター1駆動
+	  if(M1_direction == 0){
+		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, M1);
+		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+	  }
+	  else if(M1_direction == 1){
+		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
+		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, M1);
+	  }
 
+	  //モーター2駆動
+	  if(M2_direction == 0){
+		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, M2);
+		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, 0);
+	  }
+	  else if(M2_direction == 1){
+		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 0);
+		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, M2);
+	  }
+
+	  //サーボ1駆動
+	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, (int)Servo1_variable);
+
+	  //サーボ2駆動
+	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, (int)Servo2_variable);
+
+	  //LED1点灯
+	  HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, LED1_state);
+
+	  //LED2点灯
+	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, LED2_state);
+
+	  //LED3点灯
+	  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, LED3_state);
+
+//	  printf("M1...%d...", M1);
+//	  printf("direction1...%d...", M1_direction);
+//	  printf("M2...%d...", M2);
+//	  printf("direction1...%d...\r\n", M2_direction);
+//    printf("%d\r\n", Servo1_variable);
+//    printf("%d\r\n", Servo2_variable);
   }
   /* USER CODE END 3 */
 }
@@ -240,8 +286,9 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_TIM1;
   PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK1;
+  PeriphClkInit.Tim1ClockSelection = RCC_TIM1CLK_HCLK;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
@@ -264,7 +311,7 @@ static void MX_CAN_Init(void)
 
   /* USER CODE END CAN_Init 1 */
   hcan.Instance = CAN;
-  hcan.Init.Prescaler = 12;
+  hcan.Init.Prescaler = 3;
   hcan.Init.Mode = CAN_MODE_NORMAL;
   hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
   hcan.Init.TimeSeg1 = CAN_BS1_15TQ;
@@ -295,6 +342,53 @@ static void MX_CAN_Init(void)
 
   HAL_CAN_ConfigFilter(&hcan, &filter);
   /* USER CODE END CAN_Init 2 */
+
+}
+
+/**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 60000-1;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 50-1;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
 
 }
 
@@ -510,6 +604,13 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim == &htim1){
+    	//Hubの状態をCANバスに放出
+    	state_data_send();
+    }
+}
 
 int _write(int file, char *ptr, int len)
 {
