@@ -175,6 +175,7 @@ int main(void)
 	  HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, RESET);
 	  HAL_Delay(50);
   }
+  HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, SET);//起動確認用LED
 
   //CANID出力
   printf("CAN_Receive_Id...%d \r\n", (int)variable_can_id);
