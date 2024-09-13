@@ -231,18 +231,18 @@ int main(void)
 	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, (int)Servo2_variable);
 
 	  //LED1点灯
-	  HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, LED1_state);
+	  HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, !LED1_state);
 
 	  //LED2点灯
 	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, LED2_state);
 
 	  //LED3点灯
-	  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, LED3_state);
+	  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, RESET);
 
-//	  printf("M1...%d...", M1);
-//	  printf("direction1...%d...", M1_direction);
-//	  printf("M2...%d...", M2);
-//	  printf("direction1...%d...\r\n", M2_direction);
+	  printf("M1...%d...", M1);
+	  printf("direction1...%d...", M1_direction);
+	  printf("M2...%d...", M2);
+	  printf("direction1...%d...\r\n", M2_direction);
 //    printf("%d\r\n", Servo1_variable);
 //    printf("%d\r\n", Servo2_variable);
   }
@@ -312,7 +312,7 @@ static void MX_CAN_Init(void)
 
   /* USER CODE END CAN_Init 1 */
   hcan.Instance = CAN;
-  hcan.Init.Prescaler = 3;
+  hcan.Init.Prescaler = 6;
   hcan.Init.Mode = CAN_MODE_NORMAL;
   hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
   hcan.Init.TimeSeg1 = CAN_BS1_15TQ;
@@ -609,7 +609,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim == &htim1){
     	//Hubの状態をCANバスに放出
-    	state_data_send();
+//    	state_data_send();
     }
 }
 
@@ -637,10 +637,11 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	      M2_direction = can_data_receive[3];
 	      Servo1_variable = map((int)can_data_receive[4], 0, 180, 48, 261);
 	      Servo2_variable = map((int)can_data_receive[5], 0, 180, 48, 261);
-	      LED1_state = can_data_receive[6];
-	      LED3_state = can_data_receive[7];
+//	      LED1_state = can_data_receive[6];
+//	      LED3_state = can_data_receive[7];
+	      HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, SET);
 
-	      printf("CAN_ID...%u__%u___%u___%u___%u___%u___%u___%u___%u \r\n",variable_can_id,can_data_receive[0], can_data_receive[1], can_data_receive[2], can_data_receive[3], can_data_receive[4], can_data_receive[5], can_data_receive[6], can_data_receive[7]);	//CAN_reveive_Debug
+//	      printf("CAN_ID...%u__%u___%u___%u___%u___%u___%u___%u___%u \r\n",variable_can_id,can_data_receive[0], can_data_receive[1], can_data_receive[2], can_data_receive[3], can_data_receive[4], can_data_receive[5], can_data_receive[6], can_data_receive[7]);	//CAN_reveive_Debug
     }
 }
 
