@@ -97,11 +97,13 @@ static void MX_TIM1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+uint8_t can_send_flag = 0;
+
 uint8_t id;
 uint8_t dlc;
 uint8_t can_data_receive[8] = {0};//{ M1出力(uint8_t), M1回転方向(bool), M2出力(uint8_t), M2回転方向(bool), Servo1角度(uint8_t 0~180), Servo2角度(uint8_t 0~180), LD1(bool), LD3(bool)}
 
-uint32_t fId1 = 0x100 << 5; // フィルターID1
+uint32_t fId1 = 0x111 << 5; // フィルターID1
 uint32_t fId2 = 0x200 << 5; // フィルターID2
 uint32_t fId3 = 0x300 << 5; // フィルターID3
 uint32_t variable_can_id;//フィルターID可変
@@ -195,6 +197,7 @@ int main(void)
 
   //タイマ割り込みスタート
   HAL_TIM_Base_Start_IT(&htim1);
+  HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, SET);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -230,14 +233,10 @@ int main(void)
 	  //サーボ2駆動
 	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, (int)Servo2_variable);
 
-	  //LED1点灯
-	  HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, !LED1_state);
-
-	  //LED2点灯
-	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, LED2_state);
-
-	  //LED3点灯
-	  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, RESET);
+	  if(can_send_flag == 1){
+		  state_data_send();
+		  can_send_flag = 0;
+	  }
 
 	  printf("M1...%d...", M1);
 	  printf("direction1...%d...", M1_direction);
@@ -367,7 +366,7 @@ static void MX_TIM1_Init(void)
   htim1.Instance = TIM1;
   htim1.Init.Prescaler = 60000-1;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 50-1;
+  htim1.Init.Period = 100-1;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -605,11 +604,14 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim == &htim1){
     	//Hubの状態をCANバスに放出
 //    	state_data_send();
+    	can_send_flag = 1;
+    	HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
     }
 }
 
@@ -639,7 +641,8 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	      Servo2_variable = map((int)can_data_receive[5], 0, 180, 48, 261);
 //	      LED1_state = can_data_receive[6];
 //	      LED3_state = can_data_receive[7];
-	      HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, SET);
+
+	      HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
 
 //	      printf("CAN_ID...%u__%u___%u___%u___%u___%u___%u___%u___%u \r\n",variable_can_id,can_data_receive[0], can_data_receive[1], can_data_receive[2], can_data_receive[3], can_data_receive[4], can_data_receive[5], can_data_receive[6], can_data_receive[7]);	//CAN_reveive_Debug
     }
@@ -678,10 +681,10 @@ void Error_Handler(void)
   while (1)
   {
 	  printf("error! \r\n");
-	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, RESET);
-	  HAL_Delay(200);
-	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, SET);
-	  HAL_Delay(200);
+	  HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, RESET);
+	  HAL_Delay(500);
+	  HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, SET);
+	  HAL_Delay(500);
   }
   /* USER CODE END Error_Handler_Debug */
 }
