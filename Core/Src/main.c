@@ -99,7 +99,7 @@ uint8_t can_send_flag = 0;
 
 uint8_t id;
 uint8_t dlc;
-uint8_t can_data_receive[8] = {0};//{ M1出力(uint8_t), M1回転方向(bool), M2出力(uint8_t), M2回転方向(bool), Servo1角度(uint8_t 0~180), Servo2角度(uint8_t 0~180), LD1(bool), LD3(bool)}
+uint8_t can_data_receive[8] = {0, 0, 0, 0, 20, 20, 0, 0};//{ M1出力(uint8_t), M1回転方向(bool), M2出力(uint8_t), M2回転方向(bool), Servo1角度(uint8_t 0~180), Servo2角度(uint8_t 0~180), LD1(bool), LD3(bool)}
 
 uint32_t fId1 = 0x111 << 5; // フィルターID1
 uint32_t fId2 = 0x200 << 5; // フィルターID2
@@ -108,7 +108,7 @@ uint32_t variable_can_id;//フィルターID可変
 
 //状態CAN送信変数
 CAN_TxHeaderTypeDef   TxHeader;
-uint32_t main_control_CAN_id = 0x100 << 5;	//メイン基板の受信ID
+uint32_t main_control_CAN_id = 0x100;	//メイン基板の受信ID
 uint8_t	can_data_send_state[8] = {0};  //送るデータが入る配列
 uint32_t TxMailbox;
 
@@ -128,6 +128,44 @@ uint8_t LED3_state = 0;
 //マップ関数
 long map(long x, long in_min, long in_max, long out_min, long out_max) {
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+
+void state_data_send(void){
+	if(0 < HAL_CAN_GetTxMailboxesFreeLevel(&hcan)){
+		can_data_send_state[0] = variable_can_id;
+		can_data_send_state[1] = !HAL_GPIO_ReadPin(Limit_signal1_GPIO_Port, Limit_signal1_Pin);
+		can_data_send_state[2] = !HAL_GPIO_ReadPin(Limit_signal2_GPIO_Port, Limit_signal2_Pin);
+
+		TxHeader.StdId = main_control_CAN_id;
+		TxHeader.RTR = CAN_RTR_DATA;
+		TxHeader.IDE = CAN_ID_STD;
+		TxHeader.DLC = 8;
+		TxHeader.TransmitGlobalTime = DISABLE;
+
+		if(HAL_CAN_AddTxMessage(&hcan, &TxHeader, can_data_send_state, &TxMailbox) != HAL_OK)
+		{
+		    Error_Handler();
+		}
+
+		printf("limit1_%d  limit2_%d \r\n", can_data_send_state[1], can_data_send_state[2]);
+	}
+}
+
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+    CAN_RxHeaderTypeDef RxHeader;
+    uint8_t RxData[8] = {0};
+    if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK)
+    {
+		for(int i = 0; i< 8; i++){
+			can_data_receive[i] = RxData[i];
+		}
+
+	      HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
+
+//	      printf("CAN_ID...%u__%u___%u___%u___%u___%u___%u___%u___%u \r\n",variable_can_id,can_data_receive[0], can_data_receive[1], can_data_receive[2], can_data_receive[3], can_data_receive[4], can_data_receive[5], can_data_receive[6], can_data_receive[7]);	//CAN_reveive_Debug
+    }
 }
 /* USER CODE END 0 */
 
@@ -202,6 +240,15 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+	  //CANデータを処理
+      M1 = map((int)can_data_receive[0], 0, 260, 0, 260);
+      M1_direction = can_data_receive[1];
+      M2 = map((int)can_data_receive[2], 0, 260, 0, 260);
+      M2_direction = can_data_receive[3];
+      Servo1_variable = map((int)can_data_receive[4], 0, 180, 48, 261);
+      Servo2_variable = map((int)can_data_receive[5], 0, 180, 48, 261);
+
 	  //モーター1駆動
 	  if(M1_direction == 0){
 		  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, M1);
@@ -563,54 +610,6 @@ int _write(int file, char *ptr, int len)
 {
   HAL_UART_Transmit(&huart1,(uint8_t *)ptr,len,10);
   return len;
-}
-
-void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
-{
-    CAN_RxHeaderTypeDef RxHeader;
-    uint8_t RxData[8] = {0};
-    if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK)
-    {
-        id = (RxHeader.IDE == CAN_ID_STD)? RxHeader.StdId : RxHeader.ExtId;     // ID
-        dlc = RxHeader.DLC;                                                     // DLC
-		for(int i = 0; i< 8; i++){
-			can_data_receive[i] = RxData[i];
-		}
-		  //CANデータを処理
-	      M1 = map((int)can_data_receive[0], 0, 260, 0, 260);
-	      M1_direction = can_data_receive[1];
-	      M2 = map((int)can_data_receive[2], 0, 260, 0, 260);
-	      M2_direction = can_data_receive[3];
-	      Servo1_variable = map((int)can_data_receive[4], 0, 180, 48, 261);
-	      Servo2_variable = map((int)can_data_receive[5], 0, 180, 48, 261);
-//	      LED1_state = can_data_receive[6];
-//	      LED3_state = can_data_receive[7];
-
-	      HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
-
-//	      printf("CAN_ID...%u__%u___%u___%u___%u___%u___%u___%u___%u \r\n",variable_can_id,can_data_receive[0], can_data_receive[1], can_data_receive[2], can_data_receive[3], can_data_receive[4], can_data_receive[5], can_data_receive[6], can_data_receive[7]);	//CAN_reveive_Debug
-    }
-}
-
-void state_data_send(void){
-	can_data_send_state[0] = variable_can_id;
-	can_data_send_state[1] = !HAL_GPIO_ReadPin(Limit_signal1_GPIO_Port, Limit_signal1_Pin);
-	can_data_send_state[2] = !HAL_GPIO_ReadPin(Limit_signal2_GPIO_Port, Limit_signal2_Pin);
-
-	TxHeader.StdId = main_control_CAN_id;
-	TxHeader.RTR = CAN_RTR_DATA;
-	TxHeader.IDE = CAN_ID_STD;
-	TxHeader.DLC = 8;
-	TxHeader.TransmitGlobalTime = DISABLE;
-
-	if(HAL_CAN_AddTxMessage(&hcan, &TxHeader, can_data_send_state, &TxMailbox) != HAL_OK)
-	{
-	    Error_Handler();
-	}
-	while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) != 3) {
-	}
-
-	printf("limit1_%d  limit2_%d \r\n", can_data_send_state[1], can_data_send_state[2]);
 }
 
 /* USER CODE END 4 */
