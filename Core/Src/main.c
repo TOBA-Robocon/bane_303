@@ -95,10 +95,6 @@ static void MX_USART1_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-uint8_t can_send_flag = 0;
-
-uint8_t id;
-uint8_t dlc;
 uint8_t can_data_receive[8] = {0, 0, 0, 0, 20, 20, 0, 0};//{ M1出力(uint8_t), M1回転方向(bool), M2出力(uint8_t), M2回転方向(bool), Servo1角度(uint8_t 0~180), Servo2角度(uint8_t 0~180), LD1(bool), LD3(bool)}
 
 uint32_t fId1 = 0x111 << 5; // フィルターID1
@@ -106,11 +102,14 @@ uint32_t fId2 = 0x200 << 5; // フィルターID2
 uint32_t fId3 = 0x300 << 5; // フィルターID3
 uint32_t variable_can_id;//フィルターID可変
 
-//状態CAN送信変数
-CAN_TxHeaderTypeDef   TxHeader;
+//CAN用
+CAN_TxHeaderTypeDef TxHeader;
+CAN_RxHeaderTypeDef	RxHeader;
+uint32_t TxMailbox;
 uint32_t main_control_CAN_id = 0x100;	//メイン基板の受信ID
 uint8_t	can_data_send_state[8] = {0};  //送るデータが入る配列
-uint32_t TxMailbox;
+uint8_t RxData[8] = {0}; //受け取るデータが入る配列
+
 
 //駆動系変数
 int M1 = 0;
@@ -121,19 +120,15 @@ int M2_direction = 0;
 int Servo1_variable = 0;
 int Servo2_variable = 0;
 
-uint8_t LED1_state = 0;
-uint8_t LED2_state = 0;
-uint8_t LED3_state = 0;
-
-uint8_t interrupt_cheack = 0;
-uint8_t interrupt_cheack_temp = 0;
+//CAN割り込みの生死確認
+int interrupt_cheack = 0;
 
 //マップ関数
 long map(long x, long in_min, long in_max, long out_min, long out_max) {
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
-
+//リミットスイッチの状態送信
 void state_data_send(void){
 	if(0 < HAL_CAN_GetTxMailboxesFreeLevel(&hcan)){
 		can_data_send_state[0] = variable_can_id;
@@ -150,24 +145,18 @@ void state_data_send(void){
 		{
 		    Error_Handler();
 		}
-
-		printf("limit1_%d  limit2_%d \r\n", can_data_send_state[1], can_data_send_state[2]);
 	}
 }
 
+//CAN割り込み受信
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
-    CAN_RxHeaderTypeDef RxHeader;
-    uint8_t RxData[8] = {0};
     if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK)
     {
 		for(int i = 0; i< 8; i++){
 			can_data_receive[i] = RxData[i];
 		}
-
-		  printf("CAN_ID...%u__%u___%u___%u___%u___%u___%u___%u___%u \r\n",variable_can_id,can_data_receive[0], can_data_receive[1], can_data_receive[2], can_data_receive[3], can_data_receive[4], can_data_receive[5], can_data_receive[6], can_data_receive[7]);	//CAN_reveive_Debug
-		  interrupt_cheack_temp = interrupt_cheack;
-		  interrupt_cheack++;
+		interrupt_cheack = 0;
     }
 }
 /* USER CODE END 0 */
@@ -232,8 +221,6 @@ int main(void)
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
-
-  HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, SET);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -243,6 +230,10 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+	  //値確認
+	  printf("limit1_%d  limit2_%d__", can_data_send_state[1], can_data_send_state[2]);
+	  printf("CAN_ID...%u__%u___%u___%u___%u___%u___%u___%u___%u \r\n",variable_can_id,can_data_receive[0], can_data_receive[1], can_data_receive[2], can_data_receive[3], can_data_receive[4], can_data_receive[5], can_data_receive[6], can_data_receive[7]);	//CAN_reveive_Debug
 
 	  //CANデータを処理
       M1 = map((int)can_data_receive[0], 0, 260, 0, 260);
@@ -278,15 +269,18 @@ int main(void)
 	  //サーボ2駆動
 	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, (int)Servo2_variable);
 
+	  //リミットスイッチの状態送信
 	  state_data_send();
 
-	  if(interrupt_cheack != interrupt_cheack_temp){
-		  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, SET);
-		  interrupt_cheack_temp++;
-	  }
-	  else{
+	  //CAN割り込み生死確認
+	  if(interrupt_cheack > 50){
 		  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, RESET);
 	  }
+	  else{
+		  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, SET);
+	  }
+
+	  interrupt_cheack++;
 
 //	  printf("M1...%d...", M1);
 //	  printf("direction1...%d...", M1_direction);
@@ -606,16 +600,6 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
-//void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-//{
-//    if (htim == &htim1){
-//    	//Hubの状態をCANバスに放出
-//    	state_data_send();
-//    	can_send_flag = 1;
-//    	HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-//    }
-//}
 
 int _write(int file, char *ptr, int len)
 {
