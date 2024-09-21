@@ -125,6 +125,9 @@ uint8_t LED1_state = 0;
 uint8_t LED2_state = 0;
 uint8_t LED3_state = 0;
 
+uint8_t interrupt_cheack = 0;
+uint8_t interrupt_cheack_temp = 0;
+
 //マップ関数
 long map(long x, long in_min, long in_max, long out_min, long out_max) {
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
@@ -162,9 +165,9 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 			can_data_receive[i] = RxData[i];
 		}
 
-	      HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
-
-//	      printf("CAN_ID...%u__%u___%u___%u___%u___%u___%u___%u___%u \r\n",variable_can_id,can_data_receive[0], can_data_receive[1], can_data_receive[2], can_data_receive[3], can_data_receive[4], can_data_receive[5], can_data_receive[6], can_data_receive[7]);	//CAN_reveive_Debug
+		  printf("CAN_ID...%u__%u___%u___%u___%u___%u___%u___%u___%u \r\n",variable_can_id,can_data_receive[0], can_data_receive[1], can_data_receive[2], can_data_receive[3], can_data_receive[4], can_data_receive[5], can_data_receive[6], can_data_receive[7]);	//CAN_reveive_Debug
+		  interrupt_cheack_temp = interrupt_cheack;
+		  interrupt_cheack++;
     }
 }
 /* USER CODE END 0 */
@@ -214,7 +217,7 @@ int main(void)
   }
   HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, SET);//起動確認用LED
 
-  //CANID出力
+  //CANID確認
   printf("CAN_Receive_Id...%d \r\n", (int)variable_can_id);
 
   //CANスタート
@@ -276,6 +279,14 @@ int main(void)
 	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, (int)Servo2_variable);
 
 	  state_data_send();
+
+	  if(interrupt_cheack != interrupt_cheack_temp){
+		  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, SET);
+		  interrupt_cheack_temp++;
+	  }
+	  else{
+		  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, RESET);
+	  }
 
 //	  printf("M1...%d...", M1);
 //	  printf("direction1...%d...", M1_direction);
