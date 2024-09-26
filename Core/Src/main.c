@@ -98,7 +98,7 @@ static void MX_USART1_UART_Init(void);
 uint8_t can_data_receive[8] = {0, 0, 0, 0, 20, 20, 0, 0};//{ M1出力(uint8_t), M1回転方向(bool), M2出力(uint8_t), M2回転方向(bool), Servo1角度(uint8_t 0~180), Servo2角度(uint8_t 0~180), LD1(bool), LD3(bool)}
 
 uint32_t fId1 = 0x111 << 5; // フィルターID1
-uint32_t fId2 = 0x200 << 5; // フィルターID2
+uint32_t fId2 = 0x222 << 5; // フィルターID2
 uint32_t fId3 = 0x300 << 5; // フィルターID3
 uint32_t variable_can_id;//フィルターID可変
 
